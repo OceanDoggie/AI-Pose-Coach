@@ -4,6 +4,7 @@ import { Card } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Camera, CameraOff, RotateCcw, Settings, Target } from 'lucide-react';
 import type { PoseTemplate, CameraSettings } from '@shared/schema';
+import { poseDetector, type PoseAnalysis } from '@/lib/poseDetection';
 
 interface CameraViewProps {
   selectedPose: PoseTemplate | null;
@@ -25,15 +26,21 @@ export default function CameraView({
   const [isStable, setIsStable] = useState(false);
   const [countdown, setCountdown] = useState(0);
   const [cameraError, setCameraError] = useState<string | null>(null);
+  const [poseAnalysis, setPoseAnalysis] = useState<PoseAnalysis | null>(null);
   
-  // TODO: Mock pose detection - replace with MediaPipe implementation
-  const mockPoseScore = useCallback(() => {
-    if (!selectedPose) return 0;
-    // Simulate fluctuating pose similarity score
-    const baseScore = 65 + Math.random() * 25;
-    const score = Math.min(100, Math.max(0, baseScore + (Math.random() - 0.5) * 10));
-    return Math.round(score);
-  }, [selectedPose]);
+  // Enhanced pose detection using realistic scoring system
+  const analyzePose = useCallback(() => {
+    if (!selectedPose) return null;
+    
+    const analysis = poseDetector.analyzePose(
+      selectedPose, 
+      settings.threshold, 
+      settings.language
+    );
+    
+    setPoseAnalysis(analysis);
+    return analysis;
+  }, [selectedPose, settings.threshold, settings.language]);
 
   const startCamera = useCallback(async () => {
     try {
@@ -83,19 +90,28 @@ export default function CameraView({
     }
   }, [onPhotoCapture]);
 
-  // Auto-shutter logic
+  // Continuous pose detection (runs regardless of auto-shutter)
   useEffect(() => {
-    if (!settings.autoShutter || !selectedPose) return;
+    if (!selectedPose || !isStreaming) return;
     
     const interval = setInterval(() => {
-      const score = mockPoseScore();
-      setCurrentScore(score);
+      const analysis = analyzePose();
+      if (!analysis) return;
       
-      const stable = score >= settings.threshold;
-      setIsStable(stable);
-      onScoreUpdate(score, stable);
-      
-      if (stable && isStreaming) {
+      setCurrentScore(analysis.score);
+      setIsStable(analysis.isStable);
+      onScoreUpdate(analysis.score, analysis.isStable);
+    }, 100); // 10 FPS pose detection
+    
+    return () => clearInterval(interval);
+  }, [selectedPose, analyzePose, onScoreUpdate, isStreaming]);
+
+  // Auto-shutter countdown logic (only when auto-shutter is enabled)
+  useEffect(() => {
+    if (!settings.autoShutter || !selectedPose || !isStreaming) return;
+    
+    const interval = setInterval(() => {
+      if (isStable) {
         setCountdown(prev => {
           if (prev === 0) {
             return settings.stableFrames;
@@ -108,14 +124,20 @@ export default function CameraView({
       } else {
         setCountdown(0);
       }
-    }, 100); // 10 FPS mock detection
+    }, 100);
     
     return () => clearInterval(interval);
-  }, [settings, selectedPose, mockPoseScore, onScoreUpdate, capturePhoto, isStreaming]);
+  }, [settings.autoShutter, selectedPose, isStable, isStreaming, capturePhoto]);
+
+  // Reset pose detector when pose changes or camera starts/stops
+  useEffect(() => {
+    poseDetector.reset();
+  }, [selectedPose, isStreaming]);
 
   useEffect(() => {
     return () => {
       stopCamera();
+      poseDetector.reset();
     };
   }, [stopCamera]);
 
@@ -216,7 +238,44 @@ export default function CameraView({
                     {Math.ceil(countdown / 10)}
                   </div>
                 )}
+                {isStable && (
+                  <div className="mt-1 text-xs text-pose-green" data-testid="text-pose-stable">
+                    ✓ {settings.language === 'zh' ? '姿势稳定' : 'Pose Stable'}
+                  </div>
+                )}
               </div>
+            </Card>
+          </div>
+        )}
+        
+        {/* Enhanced Feedback Panel */}
+        {selectedPose && poseAnalysis && (
+          <div className="absolute bottom-20 left-4 max-w-xs">
+            <Card className="bg-black/50 backdrop-blur-sm border-overlay-white/20 p-3">
+              {poseAnalysis.feedback.improvements.length > 0 && (
+                <div className="mb-2">
+                  <div className="text-xs text-orange-400 mb-1">
+                    {settings.language === 'zh' ? '改进建议:' : 'Improvements:'}
+                  </div>
+                  {poseAnalysis.feedback.improvements.slice(0, 2).map((improvement, index) => (
+                    <div key={index} className="text-xs text-overlay-white opacity-90" data-testid={`text-improvement-${index}`}>
+                      • {improvement}
+                    </div>
+                  ))}
+                </div>
+              )}
+              {poseAnalysis.feedback.strongPoints.length > 0 && (
+                <div>
+                  <div className="text-xs text-pose-green mb-1">
+                    {settings.language === 'zh' ? '做得好:' : 'Good points:'}
+                  </div>
+                  {poseAnalysis.feedback.strongPoints.slice(0, 2).map((point, index) => (
+                    <div key={index} className="text-xs text-overlay-white opacity-90" data-testid={`text-strong-point-${index}`}>
+                      • {point}
+                    </div>
+                  ))}
+                </div>
+              )}
             </Card>
           </div>
         )}
