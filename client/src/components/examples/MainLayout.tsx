@@ -1,0 +1,1 @@
+import MainLayout from '../MainLayout';\n\nexport default function MainLayoutExample() {\n  return <MainLayout />;\n}\n"
