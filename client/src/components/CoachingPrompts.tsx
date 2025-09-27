@@ -1,1 +1,286 @@
-import React from 'react';\nimport { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';\nimport { Badge } from '@/components/ui/badge';\nimport { Button } from '@/components/ui/button';\nimport { User, Camera, Volume2, VolumeX, RotateCw } from 'lucide-react';\nimport type { PoseTemplate, PoseScore, CameraSettings } from '@shared/schema';\n\ninterface CoachingPromptsProps {\n  selectedPose: PoseTemplate | null;\n  currentScore: PoseScore | null;\n  settings: CameraSettings;\n  onSettingsChange: (settings: Partial<CameraSettings>) => void;\n}\n\nexport default function CoachingPrompts({ \n  selectedPose, \n  currentScore, \n  settings, \n  onSettingsChange \n}: CoachingPromptsProps) {\n  // TODO: Remove mock functionality - replace with real coaching logic\n  const mockAdvice = {\n    model: [\n      settings.language === 'zh' ? '左手再抬高一点' : 'Raise left hand higher',\n      settings.language === 'zh' ? '眼睛看镜头上方' : 'Look above camera lens'\n    ],\n    photographer: [\n      settings.language === 'zh' ? '机位稍微降低' : 'Lower camera position slightly',\n      settings.language === 'zh' ? '让右侧光线更柔和' : 'Soften right side lighting'\n    ]\n  };\n\n  const advice = currentScore?.advice || mockAdvice;\n  const score = currentScore?.score || 0;\n  \n  const getScoreColor = (score: number) => {\n    if (score >= settings.threshold) return 'text-pose-green';\n    if (score >= 60) return 'text-warning-amber';\n    return 'text-destructive';\n  };\n\n  const getScoreMessage = (score: number) => {\n    if (settings.language === 'zh') {\n      if (score >= settings.threshold) return '姿势完美！';\n      if (score >= 70) return '接近完美';\n      if (score >= 50) return '需要调整';\n      return '请重新摆姿势';\n    } else {\n      if (score >= settings.threshold) return 'Perfect pose!';\n      if (score >= 70) return 'Almost there';\n      if (score >= 50) return 'Needs adjustment';\n      return 'Please reposition';\n    }\n  };\n\n  if (!selectedPose) {\n    return (\n      <div className=\"p-4 h-full flex items-center justify-center\">\n        <Card className=\"text-center\">\n          <CardContent className=\"p-6\">\n            <Camera className=\"w-16 h-16 mx-auto mb-4 text-muted-foreground\" />\n            <p className=\"text-lg font-medium mb-2\">\n              {settings.language === 'zh' ? '选择一个姿势开始' : 'Select a pose to start'}\n            </p>\n            <p className=\"text-sm text-muted-foreground\">\n              {settings.language === 'zh' \n                ? '从姿势库中选择一个姿势，开始AI拍照指导' \n                : 'Choose a pose from the library to begin AI coaching'}\n            </p>\n          </CardContent>\n        </Card>\n      </div>\n    );\n  }\n\n  return (\n    <div className=\"p-4 space-y-4 h-full overflow-y-auto\">\n      {/* Current Pose Info */}\n      <Card>\n        <CardHeader className=\"pb-3\">\n          <div className=\"flex items-center justify-between\">\n            <CardTitle className=\"text-lg\">\n              {selectedPose.name.split(' / ')[settings.language === 'zh' ? 0 : 1] || selectedPose.name}\n            </CardTitle>\n            <Badge className=\"bg-primary/10 text-primary border-primary/20\">\n              {settings.language === 'zh' ? '当前姿势' : 'Current Pose'}\n            </Badge>\n          </div>\n        </CardHeader>\n        <CardContent>\n          <div className=\"space-y-3\">\n            {/* Score Display */}\n            <div className=\"flex items-center justify-between\">\n              <span className=\"text-sm font-medium\">\n                {settings.language === 'zh' ? '相似度:' : 'Similarity:'}\n              </span>\n              <div className=\"flex items-center gap-2\">\n                <span className={`text-xl font-bold ${getScoreColor(score)}`} data-testid=\"text-coaching-score\">\n                  {score}%\n                </span>\n                <Badge variant={score >= settings.threshold ? \"default\" : \"secondary\"}>\n                  {getScoreMessage(score)}\n                </Badge>\n              </div>\n            </div>\n            \n            {/* Progress Bar */}\n            <div className=\"w-full h-2 bg-muted rounded-full overflow-hidden\">\n              <div \n                className={`h-full transition-all duration-500 ${\n                  score >= settings.threshold ? 'bg-pose-green' : 'bg-progress-blue'\n                }`}\n                style={{ width: `${Math.min(score, 100)}%` }}\n              />\n            </div>\n            \n            {/* Pose Instructions */}\n            {selectedPose.sequence && selectedPose.sequence.length > 0 && (\n              <div>\n                <h4 className=\"text-sm font-medium mb-2\">\n                  {settings.language === 'zh' ? '步骤指引:' : 'Instructions:'}\n                </h4>\n                <ul className=\"space-y-1\">\n                  {selectedPose.sequence.map((step, index) => {\n                    const stepText = step.split(' / ')[settings.language === 'zh' ? 0 : 1] || step;\n                    return (\n                      <li key={index} className=\"text-sm text-muted-foreground flex items-center gap-2\">\n                        <span className=\"flex-shrink-0 w-5 h-5 bg-primary/10 text-primary text-xs rounded-full flex items-center justify-center\">\n                          {index + 1}\n                        </span>\n                        {stepText}\n                      </li>\n                    );\n                  })}\n                </ul>\n              </div>\n            )}\n          </div>\n        </CardContent>\n      </Card>\n\n      {/* Model Coaching */}\n      <Card>\n        <CardHeader className=\"pb-3\">\n          <CardTitle className=\"flex items-center gap-2 text-base\">\n            <User className=\"w-4 h-4\" />\n            {settings.language === 'zh' ? '模特指导' : 'Model Guidance'}\n          </CardTitle>\n        </CardHeader>\n        <CardContent>\n          <ul className=\"space-y-2\">\n            {advice.model.map((tip, index) => (\n              <li key={index} className=\"text-sm p-2 bg-pink-50 dark:bg-pink-950/20 rounded-md border border-pink-200 dark:border-pink-800\">\n                <span className=\"font-medium text-pink-800 dark:text-pink-200\">•</span>\n                <span className=\"ml-2 text-pink-700 dark:text-pink-300\">{tip}</span>\n              </li>\n            ))}\n          </ul>\n        </CardContent>\n      </Card>\n\n      {/* Photographer Coaching */}\n      <Card>\n        <CardHeader className=\"pb-3\">\n          <CardTitle className=\"flex items-center gap-2 text-base\">\n            <Camera className=\"w-4 h-4\" />\n            {settings.language === 'zh' ? '摄影师指导' : 'Photographer Guidance'}\n          </CardTitle>\n        </CardHeader>\n        <CardContent>\n          <ul className=\"space-y-2\">\n            {advice.photographer.map((tip, index) => (\n              <li key={index} className=\"text-sm p-2 bg-blue-50 dark:bg-blue-950/20 rounded-md border border-blue-200 dark:border-blue-800\">\n                <span className=\"font-medium text-blue-800 dark:text-blue-200\">•</span>\n                <span className=\"ml-2 text-blue-700 dark:text-blue-300\">{tip}</span>\n              </li>\n            ))}\n          </ul>\n        </CardContent>\n      </Card>\n\n      {/* Camera Hints */}\n      {selectedPose.cameraHint && (\n        <Card>\n          <CardHeader className=\"pb-3\">\n            <CardTitle className=\"flex items-center gap-2 text-base\">\n              <RotateCw className=\"w-4 h-4\" />\n              {settings.language === 'zh' ? '拍摄建议' : 'Camera Tips'}\n            </CardTitle>\n          </CardHeader>\n          <CardContent>\n            <div className=\"grid grid-cols-2 gap-3 text-sm\">\n              {selectedPose.cameraHint.framing && (\n                <div>\n                  <span className=\"font-medium text-muted-foreground\">\n                    {settings.language === 'zh' ? '构图:' : 'Framing:'}\n                  </span>\n                  <p className=\"mt-1\">\n                    {selectedPose.cameraHint.framing.split(' / ')[settings.language === 'zh' ? 0 : 1] || selectedPose.cameraHint.framing}\n                  </p>\n                </div>\n              )}\n              {selectedPose.cameraHint.distance && (\n                <div>\n                  <span className=\"font-medium text-muted-foreground\">\n                    {settings.language === 'zh' ? '距离:' : 'Distance:'}\n                  </span>\n                  <p className=\"mt-1\">\n                    {selectedPose.cameraHint.distance.split(' / ')[settings.language === 'zh' ? 0 : 1] || selectedPose.cameraHint.distance}\n                  </p>\n                </div>\n              )}\n              {selectedPose.cameraHint.height && (\n                <div>\n                  <span className=\"font-medium text-muted-foreground\">\n                    {settings.language === 'zh' ? '高度:' : 'Height:'}\n                  </span>\n                  <p className=\"mt-1\">\n                    {selectedPose.cameraHint.height.split(' / ')[settings.language === 'zh' ? 0 : 1] || selectedPose.cameraHint.height}\n                  </p>\n                </div>\n              )}\n              {selectedPose.cameraHint.light && (\n                <div>\n                  <span className=\"font-medium text-muted-foreground\">\n                    {settings.language === 'zh' ? '光线:' : 'Lighting:'}\n                  </span>\n                  <p className=\"mt-1\">\n                    {selectedPose.cameraHint.light.split(' / ')[settings.language === 'zh' ? 0 : 1] || selectedPose.cameraHint.light}\n                  </p>\n                </div>\n              )}\n            </div>\n          </CardContent>\n        </Card>\n      )}\n\n      {/* Settings Controls */}\n      <Card>\n        <CardHeader className=\"pb-3\">\n          <CardTitle className=\"text-base\">\n            {settings.language === 'zh' ? '设置' : 'Settings'}\n          </CardTitle>\n        </CardHeader>\n        <CardContent>\n          <div className=\"space-y-3\">\n            <div className=\"flex items-center justify-between\">\n              <span className=\"text-sm font-medium\">\n                {settings.language === 'zh' ? '自动快门' : 'Auto Shutter'}\n              </span>\n              <Button\n                variant=\"outline\"\n                size=\"sm\"\n                onClick={() => onSettingsChange({ autoShutter: !settings.autoShutter })}\n                data-testid=\"button-toggle-auto-shutter\"\n              >\n                {settings.autoShutter ? '开启' : '关闭'}\n              </Button>\n            </div>\n            \n            <div className=\"flex items-center justify-between\">\n              <span className=\"text-sm font-medium\">\n                {settings.language === 'zh' ? '语言' : 'Language'}\n              </span>\n              <Button\n                variant=\"outline\"\n                size=\"sm\"\n                onClick={() => onSettingsChange({ language: settings.language === 'zh' ? 'en' : 'zh' })}\n                data-testid=\"button-toggle-language\"\n              >\n                {settings.language === 'zh' ? '中文' : 'English'}\n              </Button>\n            </div>\n            \n            <div className=\"flex items-center justify-between\">\n              <span className=\"text-sm font-medium\">\n                {settings.language === 'zh' ? '阈值' : 'Threshold'}\n              </span>\n              <span className=\"text-sm text-muted-foreground\">{settings.threshold}%</span>\n            </div>\n          </div>\n        </CardContent>\n      </Card>\n    </div>\n  );\n}\n"
+import React from 'react';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Badge } from '@/components/ui/badge';
+import { Button } from '@/components/ui/button';
+import { User, Camera, Volume2, VolumeX, RotateCw } from 'lucide-react';
+import type { PoseTemplate, PoseScore, CameraSettings } from '@shared/schema';
+
+interface CoachingPromptsProps {
+  selectedPose: PoseTemplate | null;
+  currentScore: PoseScore | null;
+  settings: CameraSettings;
+  onSettingsChange: (settings: Partial<CameraSettings>) => void;
+}
+
+export default function CoachingPrompts({ 
+  selectedPose, 
+  currentScore, 
+  settings, 
+  onSettingsChange 
+}: CoachingPromptsProps) {
+  // TODO: Remove mock functionality - replace with real coaching logic
+  const mockAdvice = {
+    model: [
+      settings.language === 'zh' ? '左手再抬高一点' : 'Raise left hand higher',
+      settings.language === 'zh' ? '眼睛看镜头上方' : 'Look above camera lens'
+    ],
+    photographer: [
+      settings.language === 'zh' ? '机位稍微降低' : 'Lower camera position slightly',
+      settings.language === 'zh' ? '让右侧光线更柔和' : 'Soften right side lighting'
+    ]
+  };
+
+  const advice = currentScore?.advice || mockAdvice;
+  const score = currentScore?.score || 0;
+  
+  const getScoreColor = (score: number) => {
+    if (score >= settings.threshold) return 'text-pose-green';
+    if (score >= 60) return 'text-warning-amber';
+    return 'text-destructive';
+  };
+
+  const getScoreMessage = (score: number) => {
+    if (settings.language === 'zh') {
+      if (score >= settings.threshold) return '姿势完美！';
+      if (score >= 70) return '接近完美';
+      if (score >= 50) return '需要调整';
+      return '请重新摆姿势';
+    } else {
+      if (score >= settings.threshold) return 'Perfect pose!';
+      if (score >= 70) return 'Almost there';
+      if (score >= 50) return 'Needs adjustment';
+      return 'Please reposition';
+    }
+  };
+
+  if (!selectedPose) {
+    return (
+      <div className="p-4 h-full flex items-center justify-center">
+        <Card className="text-center">
+          <CardContent className="p-6">
+            <Camera className="w-16 h-16 mx-auto mb-4 text-muted-foreground" />
+            <p className="text-lg font-medium mb-2">
+              {settings.language === 'zh' ? '选择一个姿势开始' : 'Select a pose to start'}
+            </p>
+            <p className="text-sm text-muted-foreground">
+              {settings.language === 'zh' 
+                ? '从姿势库中选择一个姿势，开始AI拍照指导' 
+                : 'Choose a pose from the library to begin AI coaching'}
+            </p>
+          </CardContent>
+        </Card>
+      </div>
+    );
+  }
+
+  return (
+    <div className="p-4 space-y-4 h-full overflow-y-auto">
+      {/* Current Pose Info */}
+      <Card>
+        <CardHeader className="pb-3">
+          <div className="flex items-center justify-between">
+            <CardTitle className="text-lg">
+              {selectedPose.name.split(' / ')[settings.language === 'zh' ? 0 : 1] || selectedPose.name}
+            </CardTitle>
+            <Badge className="bg-primary/10 text-primary border-primary/20">
+              {settings.language === 'zh' ? '当前姿势' : 'Current Pose'}
+            </Badge>
+          </div>
+        </CardHeader>
+        <CardContent>
+          <div className="space-y-3">
+            {/* Score Display */}
+            <div className="flex items-center justify-between">
+              <span className="text-sm font-medium">
+                {settings.language === 'zh' ? '相似度:' : 'Similarity:'}
+              </span>
+              <div className="flex items-center gap-2">
+                <span className={`text-xl font-bold ${getScoreColor(score)}`} data-testid="text-coaching-score">
+                  {score}%
+                </span>
+                <Badge variant={score >= settings.threshold ? "default" : "secondary"}>
+                  {getScoreMessage(score)}
+                </Badge>
+              </div>
+            </div>
+            
+            {/* Progress Bar */}
+            <div className="w-full h-2 bg-muted rounded-full overflow-hidden">
+              <div 
+                className={`h-full transition-all duration-500 ${
+                  score >= settings.threshold ? 'bg-pose-green' : 'bg-progress-blue'
+                }`}
+                style={{ width: `${Math.min(score, 100)}%` }}
+              />
+            </div>
+            
+            {/* Pose Instructions */}
+            {selectedPose.sequence && selectedPose.sequence.length > 0 && (
+              <div>
+                <h4 className="text-sm font-medium mb-2">
+                  {settings.language === 'zh' ? '步骤指引:' : 'Instructions:'}
+                </h4>
+                <ul className="space-y-1">
+                  {selectedPose.sequence.map((step, index) => {
+                    const stepText = step.split(' / ')[settings.language === 'zh' ? 0 : 1] || step;
+                    return (
+                      <li key={index} className="text-sm text-muted-foreground flex items-center gap-2">
+                        <span className="flex-shrink-0 w-5 h-5 bg-primary/10 text-primary text-xs rounded-full flex items-center justify-center">
+                          {index + 1}
+                        </span>
+                        {stepText}
+                      </li>
+                    );
+                  })}
+                </ul>
+              </div>
+            )}
+          </div>
+        </CardContent>
+      </Card>
+
+      {/* Model Coaching */}
+      <Card>
+        <CardHeader className="pb-3">
+          <CardTitle className="flex items-center gap-2 text-base">
+            <User className="w-4 h-4" />
+            {settings.language === 'zh' ? '模特指导' : 'Model Guidance'}
+          </CardTitle>
+        </CardHeader>
+        <CardContent>
+          <ul className="space-y-2">
+            {advice.model.map((tip, index) => (
+              <li key={index} className="text-sm p-2 bg-pink-50 dark:bg-pink-950/20 rounded-md border border-pink-200 dark:border-pink-800">
+                <span className="font-medium text-pink-800 dark:text-pink-200">•</span>
+                <span className="ml-2 text-pink-700 dark:text-pink-300">{tip}</span>
+              </li>
+            ))}
+          </ul>
+        </CardContent>
+      </Card>
+
+      {/* Photographer Coaching */}
+      <Card>
+        <CardHeader className="pb-3">
+          <CardTitle className="flex items-center gap-2 text-base">
+            <Camera className="w-4 h-4" />
+            {settings.language === 'zh' ? '摄影师指导' : 'Photographer Guidance'}
+          </CardTitle>
+        </CardHeader>
+        <CardContent>
+          <ul className="space-y-2">
+            {advice.photographer.map((tip, index) => (
+              <li key={index} className="text-sm p-2 bg-blue-50 dark:bg-blue-950/20 rounded-md border border-blue-200 dark:border-blue-800">
+                <span className="font-medium text-blue-800 dark:text-blue-200">•</span>
+                <span className="ml-2 text-blue-700 dark:text-blue-300">{tip}</span>
+              </li>
+            ))}
+          </ul>
+        </CardContent>
+      </Card>
+
+      {/* Camera Hints */}
+      {selectedPose.cameraHint && (
+        <Card>
+          <CardHeader className="pb-3">
+            <CardTitle className="flex items-center gap-2 text-base">
+              <RotateCw className="w-4 h-4" />
+              {settings.language === 'zh' ? '拍摄建议' : 'Camera Tips'}
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="grid grid-cols-2 gap-3 text-sm">
+              {selectedPose.cameraHint.framing && (
+                <div>
+                  <span className="font-medium text-muted-foreground">
+                    {settings.language === 'zh' ? '构图:' : 'Framing:'}
+                  </span>
+                  <p className="mt-1">
+                    {selectedPose.cameraHint.framing.split(' / ')[settings.language === 'zh' ? 0 : 1] || selectedPose.cameraHint.framing}
+                  </p>
+                </div>
+              )}
+              {selectedPose.cameraHint.distance && (
+                <div>
+                  <span className="font-medium text-muted-foreground">
+                    {settings.language === 'zh' ? '距离:' : 'Distance:'}
+                  </span>
+                  <p className="mt-1">
+                    {selectedPose.cameraHint.distance.split(' / ')[settings.language === 'zh' ? 0 : 1] || selectedPose.cameraHint.distance}
+                  </p>
+                </div>
+              )}
+              {selectedPose.cameraHint.height && (
+                <div>
+                  <span className="font-medium text-muted-foreground">
+                    {settings.language === 'zh' ? '高度:' : 'Height:'}
+                  </span>
+                  <p className="mt-1">
+                    {selectedPose.cameraHint.height.split(' / ')[settings.language === 'zh' ? 0 : 1] || selectedPose.cameraHint.height}
+                  </p>
+                </div>
+              )}
+              {selectedPose.cameraHint.light && (
+                <div>
+                  <span className="font-medium text-muted-foreground">
+                    {settings.language === 'zh' ? '光线:' : 'Lighting:'}
+                  </span>
+                  <p className="mt-1">
+                    {selectedPose.cameraHint.light.split(' / ')[settings.language === 'zh' ? 0 : 1] || selectedPose.cameraHint.light}
+                  </p>
+                </div>
+              )}
+            </div>
+          </CardContent>
+        </Card>
+      )}
+
+      {/* Settings Controls */}
+      <Card>
+        <CardHeader className="pb-3">
+          <CardTitle className="text-base">
+            {settings.language === 'zh' ? '设置' : 'Settings'}
+          </CardTitle>
+        </CardHeader>
+        <CardContent>
+          <div className="space-y-3">
+            <div className="flex items-center justify-between">
+              <span className="text-sm font-medium">
+                {settings.language === 'zh' ? '自动快门' : 'Auto Shutter'}
+              </span>
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => onSettingsChange({ autoShutter: !settings.autoShutter })}
+                data-testid="button-toggle-auto-shutter"
+              >
+                {settings.autoShutter ? '开启' : '关闭'}
+              </Button>
+            </div>
+            
+            <div className="flex items-center justify-between">
+              <span className="text-sm font-medium">
+                {settings.language === 'zh' ? '语言' : 'Language'}
+              </span>
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => onSettingsChange({ language: settings.language === 'zh' ? 'en' : 'zh' })}
+                data-testid="button-toggle-language"
+              >
+                {settings.language === 'zh' ? '中文' : 'English'}
+              </Button>
+            </div>
+            
+            <div className="flex items-center justify-between">
+              <span className="text-sm font-medium">
+                {settings.language === 'zh' ? '阈值' : 'Threshold'}
+              </span>
+              <span className="text-sm text-muted-foreground">{settings.threshold}%</span>
+            </div>
+          </div>
+        </CardContent>
+      </Card>
+    </div>
+  );
+}
