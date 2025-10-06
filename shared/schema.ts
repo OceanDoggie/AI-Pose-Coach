@@ -57,3 +57,25 @@ export const cameraSettingsSchema = z.object({
 });
 
 export type CameraSettings = z.infer<typeof cameraSettingsSchema>;
+
+// Photo Session Schema
+export const photoSessionSchema = z.object({
+  id: z.string(),
+  timestamp: z.number(),
+  poseId: z.string(),
+  poseName: z.string(),
+  score: z.number().min(0).max(100),
+  imageData: z.string() // base64 encoded image
+});
+
+export type PhotoSession = z.infer<typeof photoSessionSchema>;
+
+// User Schema
+export const userSchema = z.object({
+  id: z.string(),
+  username: z.string(),
+  password: z.string().optional() // optional for security
+});
+
+export type User = z.infer<typeof userSchema>;
+export type InsertUser = Omit<User, 'id'>;

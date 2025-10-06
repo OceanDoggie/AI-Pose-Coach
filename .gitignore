@@ -1,6 +1,33 @@
+# 依赖
 node_modules
+
+# 构建输出
 dist
-.DS_Store
 server/public
+
+# 环境变量
+.env
+.env.local
+.env.production
+
+# 系统文件
+.DS_Store
+Thumbs.db
+
+# IDE
+.vscode
+.idea
+*.swp
+*.swo
+
+# 日志
+*.log
+npm-debug.log*
+
+# Replit 遗留文件（如果还有）
+.replit
+.local
+
+# 其他
 vite.config.ts.*
 *.tar.gz
